@@ -1,0 +1,38 @@
+{
+    "name": "bc-linux-wine-base",
+    "version": "1.0.0",
+    "description": "Custom Wine build optimized for Business Central on Linux",
+    "main": "index.js",
+    "scripts": {
+        "build": "docker build -t bc-wine-base .",
+        "build-bc-simple": "docker build -t bc-simple examples/bc-simple/",
+        "build-bc-full": "docker build -t bc-full examples/bc-full/",
+        "run": "docker run --rm bc-wine-base",
+        "run-interactive": "docker run --rm -it bc-wine-base /bin/bash",
+        "test-wine": "docker run --rm bc-wine-base test-wine",
+        "test-powershell": "docker run --rm bc-wine-base pwsh -c 'Get-Module -ListAvailable BcContainerHelper'"
+    },
+    "keywords": [
+        "wine",
+        "business-central",
+        "linux",
+        "docker",
+        "bc-server"
+    ],
+    "author": "BC Community",
+    "contributors": [
+        {
+            "name": "Torben Leth",
+            "url": "https://github.com/SShadowS"
+        },
+        {
+            "name": "Stefan Maron",
+            "url": "https://github.com/StefanMaron"
+        }
+    ],
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/your-username/BCOnLinuxBase.git"
+    }
+}

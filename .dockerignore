@@ -1,0 +1,51 @@
+# Git and version control
+.git
+.gitignore
+.github/
+
+# Documentation
+README.md
+*.md
+
+# CI/CD
+.github/
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+
+# Build artifacts
+dist
+build
+target/
+
+# Logs
+logs
+*.log
+
+# Coverage
+coverage
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Package managers
+package.json
+package-lock.json
+node_modules/
+
+# Docker files (keep only Dockerfile in context)
+.dockerignore
+docker-compose.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp

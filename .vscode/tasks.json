@@ -1,0 +1,22 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Wine Docker Image",
+			"type": "shell",
+			"command": "docker",
+			"args": [
+				"build",
+				"-t",
+				"bc-wine-base",
+				"."
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			}
+		}
+	]
+}
