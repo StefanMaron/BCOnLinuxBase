@@ -1,4 +1,3 @@
-# Wine builder stage for Business Central on Linux
 FROM ubuntu:22.04 AS wine-builder
 
 # Install Wine build dependencies
@@ -93,16 +92,15 @@ RUN git clone --depth 1 https://github.com/wine-staging/wine-staging.git /wine-s
     cd /wine-staging && \
     python3 ./staging/patchinstall.py DESTDIR=/wine-src --all
 
-# Copy and apply the locale display fix patch
-COPY wine-locale-display-fix.patch /wine-locale-display-fix.patch
-RUN cd /wine-src && \
-    patch -p1 < /wine-locale-display-fix.patch || { \
-        echo "Patch failed, attempting to apply manually..."; \
-        # If patch fails, try to apply the changes manually
-        cp /wine-locale-display-fix.patch /tmp/; \
-    }
+# Copy patch application script and patches directory
+COPY apply-wine-patches.sh /apply-wine-patches.sh
+COPY wine-patches /wine-patches
+RUN chmod +x /apply-wine-patches.sh
 
-# Regenerate locale data with the fix
+# Apply all custom Wine patches from the patches directory
+RUN /apply-wine-patches.sh /wine-src /wine-patches
+
+# Regenerate locale data after patches
 RUN cd /wine-src/tools && \
     perl make_unicode && \
     cd ..
@@ -142,40 +140,38 @@ FROM ubuntu:22.04
 # Copy custom Wine build from builder stage
 COPY --from=wine-builder /opt/wine-custom /opt/wine-custom
 COPY --from=wine-builder /opt/wine-custom/wine-version.txt /opt/wine-custom/wine-version.txt
+COPY --from=wine-builder /wine-src/PATCHES_APPLIED.txt /opt/wine-custom/PATCHES_APPLIED.txt
 
-# Install minimal runtime dependencies for Wine and BC
+# Install runtime dependencies
 RUN dpkg --add-architecture i386 && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        # Essential Wine runtime dependencies
+        # Wine runtime dependencies
         libc6:i386 \
         libx11-6:i386 \
         libx11-6 \
         libfreetype6:i386 \
         libfreetype6 \
-        # Additional Wine runtime libraries needed for BC
-        libxcomposite1:i386 \
-        libxcomposite1 \
-        libxss1:i386 \
-        libxss1 \
-        libgconf-2-4:i386 \
-        libgconf-2-4 \
-        libnss3:i386 \
-        libnss3 \
+        libfontconfig1:i386 \
+        libfontconfig1 \
+        libxcursor1:i386 \
+        libxcursor1 \
+        libxi6:i386 \
+        libxi6 \
+        libxext6:i386 \
+        libxext6 \
         libxrandr2:i386 \
         libxrandr2 \
+        libxrender1:i386 \
+        libxrender1 \
+        libxinerama1:i386 \
+        libxinerama1 \
+        libgl1:i386 \
+        libgl1 \
+        libglu1-mesa:i386 \
+        libglu1-mesa \
         libasound2:i386 \
         libasound2 \
-        libpangocairo-1.0-0:i386 \
-        libpangocairo-1.0-0 \
-        libatk1.0-0:i386 \
-        libatk1.0-0 \
-        libcairo-gobject2:i386 \
-        libcairo-gobject2 \
-        libgtk-3-0:i386 \
-        libgtk-3-0 \
-        libgdk-pixbuf2.0-0:i386 \
-        libgdk-pixbuf2.0-0 \
         libpulse0:i386 \
         libpulse0 \
         libdbus-1-3:i386 \
@@ -188,23 +184,7 @@ RUN dpkg --add-architecture i386 && \
         libldap-2.5-0 \
         libcups2:i386 \
         libcups2 \
-        libfontconfig1:i386 \
-        libfontconfig1 \
-        libxcursor1:i386 \
-        libxcursor1 \
-        libxi6:i386 \
-        libxi6 \
-        libxext6:i386 \
-        libxext6 \
-        libxrender1:i386 \
-        libxrender1 \
-        libxinerama1:i386 \
-        libxinerama1 \
-        libgl1:i386 \
-        libgl1 \
-        libglu1-mesa:i386 \
-        libglu1-mesa \
-        # Required tools for BC
+        # Required tools
         winbind \
         p7zip-full \
         net-tools \
@@ -213,22 +193,30 @@ RUN dpkg --add-architecture i386 && \
         curl \
         gnupg2 \
         software-properties-common \
+        ca-certificates \
         xvfb \
         xauth \
         unzip \
         locales \
+        # Additional tools
         lsb-release \
+        vim-common \
+        # SQL Server tools dependencies
         apt-transport-https \
-        ca-certificates \
+        # Network debugging tools
+        net-tools \
+        iputils-ping \
+        dnsutils \
+        telnet \
     && locale-gen en_US.UTF-8 \
     && update-locale LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install winetricks for additional Windows components
+# Install winetricks
 RUN wget -q https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -O /usr/bin/winetricks && \
     chmod +x /usr/bin/winetricks
 
-# Install PowerShell for BC Container Helper
+# Install PowerShell
 RUN wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" && \
     dpkg -i packages-microsoft-prod.deb && \
     rm packages-microsoft-prod.deb && \
