@@ -13,7 +13,7 @@ env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: docker.io
   # Change this to your preferred Docker Hub image name
-  IMAGE_NAME: stefanmaron/bc-wine-base
+  IMAGE_NAME: stefanmaronbc/bc-wine-base
 
 jobs:
   build:
