@@ -64,26 +64,81 @@ jobs:
             type=raw,value=wine-{{date 'YYYYMMDD'}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
-        id: build-and-push
+      - name: Build stage 1 image (Wine without initialization)
+        id: build-stage1
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          push: false
+          tags: wine-base-stage1:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: mode=max
-          sbom: true
+          load: true
+
+      - name: Run Wine initialization in container
+        run: |
+          echo "Starting container to initialize Wine with .NET Framework..."
+          docker run --name wine-init wine-base-stage1:latest
+          
+          echo "Waiting for Wine initialization to complete..."
+          docker wait wine-init
+          
+          # Check if initialization was successful
+          if [ $? -eq 0 ]; then
+            echo "✓ Wine initialization completed successfully"
+          else
+            echo "✗ Wine initialization failed"
+            docker logs wine-init
+            exit 1
+          fi
+
+      - name: Commit initialized container as final image
+        run: |
+          echo "Committing Wine-initialized container..."
+          docker commit wine-init wine-base-final:latest
+          docker rm wine-init
+          
+          # Tag with all the required tags
+          TAGS="${{ steps.meta.outputs.tags }}"
+          echo "Tagging final image with all required tags..."
+          echo "${TAGS}" | while read -r tag; do
+            echo "Tagging: ${tag}"
+            docker tag wine-base-final:latest "${tag}"
+          done
+
+      - name: Push final Docker image
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          TAGS="${{ steps.meta.outputs.tags }}"
+          echo "Pushing all tagged images..."
+          echo "${TAGS}" | while read -r tag; do
+            echo "Pushing: ${tag}"
+            docker push "${tag}"
+          done
+          
+          # Get the digest of the pushed image for signing
+          MAIN_TAG=$(echo "${TAGS}" | head -n 1)
+          echo "Getting digest for image: ${MAIN_TAG}"
+          
+          # Push and get digest
+          PUSH_RESULT=$(docker push "${MAIN_TAG}" 2>&1)
+          DIGEST=$(echo "$PUSH_RESULT" | grep -o 'sha256:[a-f0-9]\{64\}' | head -n 1)
+          
+          if [ -z "$DIGEST" ]; then
+            # Fallback: inspect the image
+            DIGEST=$(docker inspect "${MAIN_TAG}" --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
+          fi
+          
+          echo "DIGEST=${DIGEST}" >> $GITHUB_ENV
+          echo "MAIN_TAG=${MAIN_TAG}" >> $GITHUB_ENV
+          echo "Image digest: ${DIGEST}"
 
       - name: Sign the published Docker image
         if: ${{ github.event_name != 'pull_request' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           TAGS: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push.outputs.digest }}
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: |
@@ -100,5 +155,5 @@ jobs:
         uses: actions/attest-build-provenance@v1
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          subject-digest: ${{ env.DIGEST }}
           push-to-registry: true

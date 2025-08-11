@@ -1,8 +1,7 @@
 FROM ubuntu:22.04 AS wine-builder
 
 # Install Wine build dependencies
-RUN apt-get update && \
-    dpkg --add-architecture i386 && \
+RUN dpkg --add-architecture i386 && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         # Build essentials
@@ -134,7 +133,7 @@ RUN cd /wine-build/wine64 && make install && \
 # Create version file
 RUN /opt/wine-custom/bin/wine --version > /opt/wine-custom/wine-version.txt
 
-# Final minimal image with Wine build artifacts
+# Final minimal image with Wine build artifacts (NO Wine initialization here)
 FROM ubuntu:22.04
 
 # Copy custom Wine build from builder stage
@@ -237,15 +236,7 @@ ENV PATH="/opt/wine-custom/bin:${PATH}" \
     WINE_SKIP_MONO_INSTALLATION=1 \
     WINEDEBUG=-winediag
 
-# Set shell to PowerShell for BC Container Helper installation
-SHELL ["pwsh", "-Command"]
-
-# Install BC Container Helper
-RUN Set-PSRepository -Name PSGallery -InstallationPolicy Trusted; \
-    Install-Module -Name BcContainerHelper -Force -AllowClobber -Scope AllUsers
-
-# Switch back to bash
-SHELL ["/bin/bash", "-c"]
+# Note: BC Container Helper installation moved to runtime script
 
 # Create directories for BC usage
 RUN mkdir -p /home/bcartifacts /home/bcserver/Keys /home/scripts /opt/wine-prefix
@@ -254,37 +245,9 @@ RUN mkdir -p /home/bcartifacts /home/bcserver/Keys /home/scripts /opt/wine-prefi
 COPY fix-wine-cultures.sh /usr/local/bin/fix-wine-cultures.sh
 RUN chmod +x /usr/local/bin/fix-wine-cultures.sh
 
-# Initialize Wine prefix with BC-optimized settings and install .NET Framework 4.8
-RUN export WINEPREFIX=/opt/wine-prefix && \
-    export WINEARCH=win64 && \
-    export DISPLAY=":0" && \
-    export WINEDEBUG=-winediag && \
-    # Start virtual display for .NET installation
-    rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true && \
-    Xvfb :0 -screen 0 1024x768x24 -ac +extension GLX & \
-    XVFB_PID=$! && \
-    sleep 3 && \
-    # Initialize Wine prefix
-    wineboot --init && \
-    # Set Wine to Windows 11 mode for better BC compatibility (as per original repo)
-    winecfg /v win11 && \
-    # Install .NET Framework 4.8 (stable, version-independent base requirement)
-    echo "Installing .NET Framework 4.8..." && \
-    winetricks -q dotnet48 && \
-    # Configure Wine registry for BC Server compatibility
-    wine reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\.NETFramework" /v "InstallRoot" /t REG_SZ /d "C:\\Windows\\Microsoft.NET\\Framework64\\" /f && \
-    wine reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319" /v "SchUseStrongCrypto" /t REG_DWORD /d 1 /f && \
-    # Configure graphics settings for headless operation
-    wine reg add "HKEY_CURRENT_USER\\Software\\Wine\\Direct3D" /v "DirectDrawRenderer" /t REG_SZ /d "opengl" /f && \
-    wine reg add "HKEY_CURRENT_USER\\Software\\Wine\\Direct3D" /v "UseGLSL" /t REG_SZ /d "disabled" /f && \
-    wine reg add "HKEY_CURRENT_USER\\Software\\Wine\\Direct3D" /v "UseVulkan" /t REG_SZ /d "disabled" /f && \
-    # Apply Wine culture fixes
-    /usr/local/bin/fix-wine-cultures.sh && \
-    # Wait for wineserver to finish
-    wineserver --wait && \
-    # Stop virtual display and clean up
-    kill $XVFB_PID 2>/dev/null || true && \
-    rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true
+# Create wine initialization script for runtime
+COPY wine-init-runtime.sh /usr/local/bin/wine-init-runtime.sh
+RUN chmod +x /usr/local/bin/wine-init-runtime.sh
 
 # Show Wine version
 RUN echo "Wine version installed:" && cat /opt/wine-custom/wine-version.txt
@@ -293,5 +256,5 @@ RUN echo "Wine version installed:" && cat /opt/wine-custom/wine-version.txt
 COPY test-wine.sh /usr/local/bin/test-wine.sh
 RUN chmod +x /usr/local/bin/test-wine.sh
 
-# Default command
-CMD ["/usr/local/bin/test-wine.sh"]
+# Default command - initialize Wine at runtime
+CMD ["/usr/local/bin/wine-init-runtime.sh"]
