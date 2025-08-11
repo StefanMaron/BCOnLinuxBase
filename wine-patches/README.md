@@ -31,15 +31,27 @@ mv problematic-patch.patch problematic-patch.patch.disabled
 
 ### Active patches
 
-#### 001-wine-locale-display-fix.patch
-Fixes the issue where Wine's `LocaleNameToLCID("en-US")` returns 0 instead of the correct value (0x0409). This patch is essential for Business Central to properly initialize its culture/language support.
+The following patches are applied to Wine to enable Business Central compatibility:
 
-### Obsolete patches (disabled)
+#### nls_locale.nls.patch
+Fixes locale-related issues in Wine's NLS (National Language Support) system that affect Business Central's culture/language initialization.
 
-Files with `.disabled` extension are ignored by the patch system:
+#### tools_make_unicode.patch  
+Updates Wine's Unicode generation tools to properly handle locale data for Business Central.
 
-- `OBSOLETE-wine-locale-fix.patch.disabled` - Earlier attempt at locale fix (superseded by 001-wine-locale-display-fix.patch)
-- `OBSOLETE-wine-locale-debug.patch.disabled` - Debug patches for locale issues (no longer needed)
+#### dlls_httpapi_httpapi_main.c.patch
+Implements HTTP API functions in httpapi.dll that Business Central's HTTP.SYS compatibility layer requires.
+
+#### dlls_httpapi_httpapi.spec.patch
+Updates the httpapi.dll specification to export the necessary HTTP API functions.
+
+#### dlls_http.sys_http.c.patch
+Enhances Wine's HTTP.SYS implementation for better Business Central web service compatibility.
+
+#### include_wine_http.h.patch
+Adds necessary HTTP API header definitions for Wine's HTTP subsystem.
+
+These patches work together to provide comprehensive HTTP API support and locale functionality needed by Business Central Server.
 
 ## Troubleshooting
 

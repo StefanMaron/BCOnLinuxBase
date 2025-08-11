@@ -238,7 +238,10 @@ ENV PATH="/opt/wine-custom/bin:${PATH}" \
     WINEARCH=win64 \
     WINEPREFIX=/opt/wine-prefix \
     DEBIAN_FRONTEND=noninteractive \
-    DISPLAY=":0"
+    DISPLAY=":0" \
+    WINE_SKIP_GECKO_INSTALLATION=1 \
+    WINE_SKIP_MONO_INSTALLATION=1 \
+    WINEDEBUG=-winediag
 
 # Set shell to PowerShell for BC Container Helper installation
 SHELL ["pwsh", "-Command"]
@@ -253,17 +256,41 @@ SHELL ["/bin/bash", "-c"]
 # Create directories for BC usage
 RUN mkdir -p /home/bcartifacts /home/bcserver/Keys /home/scripts /opt/wine-prefix
 
-# Initialize Wine prefix with BC-optimized settings
+# Copy Wine culture fix script
+COPY fix-wine-cultures.sh /usr/local/bin/fix-wine-cultures.sh
+RUN chmod +x /usr/local/bin/fix-wine-cultures.sh
+
+# Initialize Wine prefix with BC-optimized settings and install .NET Framework 4.8
 RUN export WINEPREFIX=/opt/wine-prefix && \
     export WINEARCH=win64 && \
+    export DISPLAY=":0" && \
+    export WINEDEBUG=-winediag && \
+    # Start virtual display for .NET installation
+    rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true && \
+    Xvfb :0 -screen 0 1024x768x24 -ac +extension GLX & \
+    XVFB_PID=$! && \
+    sleep 3 && \
+    # Initialize Wine prefix
     wineboot --init && \
-    # Set Wine to Windows 10 mode for better BC compatibility
-    wine reg add "HKEY_CURRENT_USER\Software\Wine\Version" /v "Windows" /t REG_SZ /d "10" /f && \
-    # Configure Direct3D for better performance
-    wine reg add "HKEY_CURRENT_USER\Software\Wine\Direct3D" /v "renderer" /t REG_SZ /d "gl" /f && \
-    wine reg add "HKEY_CURRENT_USER\Software\Wine\Direct3D" /v "DirectDrawRenderer" /t REG_SZ /d "opengl" /f && \
+    # Set Wine to Windows 11 mode for better BC compatibility (as per original repo)
+    winecfg /v win11 && \
+    # Install .NET Framework 4.8 (stable, version-independent base requirement)
+    echo "Installing .NET Framework 4.8..." && \
+    winetricks -q dotnet48 && \
+    # Configure Wine registry for BC Server compatibility
+    wine reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\.NETFramework" /v "InstallRoot" /t REG_SZ /d "C:\\Windows\\Microsoft.NET\\Framework64\\" /f && \
+    wine reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319" /v "SchUseStrongCrypto" /t REG_DWORD /d 1 /f && \
+    # Configure graphics settings for headless operation
+    wine reg add "HKEY_CURRENT_USER\\Software\\Wine\\Direct3D" /v "DirectDrawRenderer" /t REG_SZ /d "opengl" /f && \
+    wine reg add "HKEY_CURRENT_USER\\Software\\Wine\\Direct3D" /v "UseGLSL" /t REG_SZ /d "disabled" /f && \
+    wine reg add "HKEY_CURRENT_USER\\Software\\Wine\\Direct3D" /v "UseVulkan" /t REG_SZ /d "disabled" /f && \
+    # Apply Wine culture fixes
+    /usr/local/bin/fix-wine-cultures.sh && \
     # Wait for wineserver to finish
-    wineserver --wait
+    wineserver --wait && \
+    # Stop virtual display and clean up
+    kill $XVFB_PID 2>/dev/null || true && \
+    rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true
 
 # Show Wine version
 RUN echo "Wine version installed:" && cat /opt/wine-custom/wine-version.txt
