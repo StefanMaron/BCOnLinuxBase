@@ -216,20 +216,14 @@ RUN dpkg --add-architecture i386 && \
 RUN wget -q https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -O /usr/bin/winetricks && \
     chmod +x /usr/bin/winetricks
 
-# Install SQL Server tools
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
-    curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
-    apt-get update && \
-    ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev && \
-    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/bash.bashrc && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install PowerShell
+# Install Microsoft repository and packages (PowerShell and SQL tools)
 RUN wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" && \
     dpkg -i packages-microsoft-prod.deb && \
     rm packages-microsoft-prod.deb && \
     apt-get update && \
     apt-get install -y powershell && \
+    ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev && \
+    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/bash.bashrc && \
     rm -rf /var/lib/apt/lists/*
 
 # Set Wine environment
