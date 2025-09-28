@@ -103,9 +103,10 @@ RUN mkdir -p /home/bcartifacts /home/bcserver/Keys /home/scripts /opt/wine-prefi
 COPY fix-wine-cultures.sh /usr/local/bin/fix-wine-cultures.sh
 RUN chmod +x /usr/local/bin/fix-wine-cultures.sh
 
-# Create wine initialization script for runtime
+# Create wine initialization scripts for runtime
 COPY wine-init-runtime.sh /usr/local/bin/wine-init-runtime.sh
-RUN chmod +x /usr/local/bin/wine-init-runtime.sh
+COPY wine-init-full.sh /usr/local/bin/wine-init-full.sh
+RUN chmod +x /usr/local/bin/wine-init-runtime.sh /usr/local/bin/wine-init-full.sh
 
 # Show Wine version
 RUN echo "Wine version installed:" && wine --version
