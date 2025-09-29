@@ -17,35 +17,14 @@ export WINEDLLPATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib/wine/x86_64-w
 export WINELOADER="/usr/local/bin/wine"
 export WINESERVER="/usr/local/bin/wineserver"
 
-# Start virtual display (needed for Wine operations)
+# Start virtual display (needed for .NET installation)
 echo "Starting virtual display..."
 rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true
 Xvfb :0 -screen 0 1024x768x24 -ac +extension GLX &
 XVFB_PID=$!
 sleep 3
 
-# Initialize Wine prefix if it doesn't exist
-if [ ! -d "$WINEPREFIX/drive_c" ]; then
-    echo "Initializing Wine prefix at $WINEPREFIX..."
-    # Suppress errors that are actually just warnings, give it time to complete
-    timeout 60 wineboot --init 2>&1 | grep -v "wine: Call from" | grep -v "wine: Unimplemented" | grep -v "wine: could not load" | grep -v "starting debugger" || true
-
-    # Give Wine a moment to finish writing files
-    sleep 3
-
-    # Verify prefix structure
-    if [ ! -d "$WINEPREFIX/drive_c" ]; then
-        echo "✗ Wine prefix initialization failed"
-        exit 1
-    fi
-    echo "✓ Wine prefix initialized successfully"
-fi
-
-# Verify Wine prefix is accessible
-if [ ! -d "$WINEPREFIX/drive_c/windows" ]; then
-    echo "Error: Wine prefix appears incomplete. Missing windows directory."
-    exit 1
-fi
+# Note: Wine prefix will be automatically initialized by the .NET installers
 
 # Cleanup function
 cleanup() {
