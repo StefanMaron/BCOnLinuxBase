@@ -6,72 +6,54 @@ set -e
 echo "=== Ultra-Minimal Wine Initialization for CI ==="
 
 # Set Wine environment for headless operation
-export WINEPREFIX=/opt/wine-prefix
+export WINEPREFIX=/root/.local/share/wineprefixes/bc1
 export WINEARCH=win64
 export WINEDEBUG=-all
 export WINEDLLOVERRIDES="mshtml,mscoree,oleaut32,rpcrt4,wininet="
+
+# Critical: Set Wine library paths for wine64-bc4ubuntu package
+export PATH="/usr/local/bin:${PATH}"
+export LD_LIBRARY_PATH="/usr/local/lib64:/usr/local/lib:/usr/local/lib/wine/x86_64-unix:/usr/local/lib/wine:${LD_LIBRARY_PATH}"
+export WINEDLLPATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib/wine/x86_64-windows"
+export WINELOADER="/usr/local/bin/wine"
+export WINESERVER="/usr/local/bin/wineserver"
+
+# Start virtual display (required for Wine operations)
+echo "Starting virtual display..."
+rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true
+Xvfb :0 -screen 0 1024x768x24 -ac +extension GLX &
+XVFB_PID=$!
+export DISPLAY=":0"
+sleep 2
 
 # Ensure locale is set
 echo "Setting up locale..."
 locale-gen en_US.UTF-8 2>/dev/null || echo "locale-gen failed, continuing..."
 update-locale LANG=en_US.UTF-8 2>/dev/null || echo "update-locale failed, continuing..."
 
-# Create Wine prefix structure manually
-echo "Creating Wine prefix structure..."
-mkdir -p "$WINEPREFIX"
-mkdir -p "$WINEPREFIX/drive_c/windows/system32"
-mkdir -p "$WINEPREFIX/drive_c/windows/Microsoft.NET/Framework64"
-mkdir -p "$WINEPREFIX/drive_c/Program Files"
-mkdir -p "$WINEPREFIX/drive_c/Program Files (x86)"
+# Initialize Wine prefix with wineboot
+echo "Initializing Wine prefix at $WINEPREFIX..."
+# Suppress errors that are actually just warnings, give it time to complete
+timeout 60 wineboot --init 2>&1 | grep -v "wine: Call from" | grep -v "wine: Unimplemented" | grep -v "wine: could not load" | grep -v "starting debugger" || true
 
-# Create minimal system.reg and user.reg files
-echo "Creating minimal Wine registry..."
-cat > "$WINEPREFIX/system.reg" << 'EOF'
-WINE REGISTRY Version 2
-[Software\\Microsoft\\Windows NT\\CurrentVersion] 1234567890
-"CurrentVersion"="10.0"
-"CurrentBuild"="19041"
-
-[Software\\Microsoft\\.NETFramework] 1234567890
-"InstallRoot"="C:\\Windows\\Microsoft.NET\\Framework64\\"
-
-[Software\\Classes] 1234567890
-
-EOF
-
-cat > "$WINEPREFIX/user.reg" << 'EOF'
-WINE REGISTRY Version 2
-[Software\\Wine] 1234567890
-"Version"="win10"
-
-[Software\\Wine\\Direct3D] 1234567890
-"DirectDrawRenderer"="gdi"
-"UseGLSL"="disabled"
-"UseVulkan"="disabled"
-
-EOF
-
-# Create userdef.reg
-cat > "$WINEPREFIX/userdef.reg" << 'EOF'
-WINE REGISTRY Version 2
-
-EOF
+# Give Wine a moment to finish writing files
+sleep 3
 
 # Verify prefix structure
 if [ -d "$WINEPREFIX/drive_c" ]; then
-    echo "✓ Wine prefix structure created successfully"
+    echo "✓ Wine prefix initialized successfully"
+    ls -la "$WINEPREFIX/drive_c/" | head -5
 else
-    echo "✗ Wine prefix creation failed"
+    echo "✗ Wine prefix initialization failed"
     exit 1
 fi
 
 # Test Wine functionality without GUI
 echo "Testing Wine functionality..."
-export DISPLAY=""  # Disable display entirely
-if timeout 10 wine --version >/dev/null 2>&1; then
-    echo "✓ Wine is functional"
+if wine --version >/dev/null 2>&1; then
+    echo "✓ Wine is functional: $(wine --version)"
 else
-    echo "Warning: Wine test failed, but prefix exists"
+    echo "Warning: Wine version check failed, but prefix exists"
 fi
 
 # Apply culture fixes if available (non-interactive)

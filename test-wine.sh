@@ -9,11 +9,10 @@ echo "Wine64 path: $(which wine64)"
 echo ""
 echo "=== Testing Wine functionality ==="
 # Test basic Wine functionality
-export WINEPREFIX=/tmp/test-wine
+export WINEPREFIX=/root/.local/share/wineprefixes/bc1
 export WINEARCH=win64
 
-echo "Initializing Wine prefix..."
-wineboot --init 2>/dev/null
+echo "Using Wine prefix at $WINEPREFIX..."
 
 echo "Testing Wine registry..."
 wine reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v ProductName 2>/dev/null
