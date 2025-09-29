@@ -5,7 +5,7 @@ set -e
 echo "Applying Wine culture fixes to prevent duplicates..."
 
 # Set Wine environment
-export WINEPREFIX=/opt/wine-prefix
+export WINEPREFIX=/root/.local/share/wineprefixes/bc1
 export WINEARCH=win64
 
 # Ensure Wine prefix exists

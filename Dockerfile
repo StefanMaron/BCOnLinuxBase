@@ -67,7 +67,7 @@ RUN dpkg --add-architecture i386 && \
         dnsutils \
         telnet \
     && wget -q "https://github.com/SShadowS/wine64-bc4ubuntu/releases/latest/download/wine.tar.gz" -O /tmp/wine.tar.gz \
-    && tar -xzf /tmp/wine.tar.gz -C / \
+    && cd / && tar -xzf /tmp/wine.tar.gz && cd - \
     && rm /tmp/wine.tar.gz \
     && wget -q https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -O /usr/bin/winetricks \
     && chmod +x /usr/bin/winetricks \
@@ -83,21 +83,30 @@ RUN dpkg --add-architecture i386 && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Set Wine environment (assuming standard installation paths)
+# Configure dynamic linker for Wine libraries - must be after Wine extraction
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/wine.conf && \
+    echo "/usr/local/lib/wine" >> /etc/ld.so.conf.d/wine.conf && \
+    echo "/usr/local/lib/wine/x86_64-unix" >> /etc/ld.so.conf.d/wine.conf && \
+    ldconfig -v 2>&1 | grep -E "^/usr/local" || true && \
+    ldconfig
+
+# Set Wine environment
 ENV PATH="/usr/local/bin:${PATH}" \
-    LD_LIBRARY_PATH="/usr/local/lib64:/usr/local/lib:${LD_LIBRARY_PATH}" \
+    LD_LIBRARY_PATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib" \
+    WINEDLLPATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib/wine/x86_64-windows" \
     WINEARCH=win64 \
-    WINEPREFIX=/opt/wine-prefix \
+    WINEPREFIX=/root/.local/share/wineprefixes/bc1 \
     DEBIAN_FRONTEND=noninteractive \
     DISPLAY=":0" \
     WINE_SKIP_GECKO_INSTALLATION=1 \
     WINE_SKIP_MONO_INSTALLATION=1 \
     WINEDEBUG=-winediag
 
-# Note: BC Container Helper installation moved to runtime script
+# Install BC Container Helper during build for artifact download
+RUN pwsh -Command "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted; Install-Module -Name BcContainerHelper -Force -AllowClobber -Scope AllUsers"
 
 # Create directories for BC usage
-RUN mkdir -p /home/bcartifacts /home/bcserver/Keys /home/scripts /opt/wine-prefix
+RUN mkdir -p /home/bcartifacts /home/bcserver/Keys /home/scripts /home/tests /root/.local/share/wineprefixes/bc1
 
 # Copy Wine culture fix script
 COPY fix-wine-cultures.sh /usr/local/bin/fix-wine-cultures.sh
