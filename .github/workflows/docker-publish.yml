@@ -32,6 +32,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Cleanup Docker
+        run: |
+          docker system prune -f
+          docker image prune -f
+
       - name: Install cosign
         if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@v3.7.0
