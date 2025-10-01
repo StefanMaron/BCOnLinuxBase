@@ -66,9 +66,11 @@ RUN dpkg --add-architecture i386 && \
         iputils-ping \
         dnsutils \
         telnet \
-    && wget -q "https://github.com/SShadowS/wine64-bc4ubuntu/releases/latest/download/wine.tar.gz" -O /tmp/wine.tar.gz \
-    && cd / && tar -xzf /tmp/wine.tar.gz && cd - \
-    && rm /tmp/wine.tar.gz \
+    && wget -q "https://github.com/SShadowS/wine64-bc4ubuntu/releases/latest/download/wine-custom_10.15-unknown_amd64.deb" -O /tmp/wine-custom.deb \
+    && apt-get install -y /tmp/wine-custom.deb \
+    && rm /tmp/wine-custom.deb \
+    && chmod +x /usr/local/lib/wine/x86_64-unix/wine-preloader /usr/local/lib/wine/x86_64-unix/wine64-preloader 2>/dev/null || true \
+    && chmod +x /usr/local/lib/wine/i386-unix/wine-preloader 2>/dev/null || true \
     && wget -q https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -O /usr/bin/winetricks \
     && chmod +x /usr/bin/winetricks \
     && wget -q "https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb" \
