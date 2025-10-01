@@ -28,28 +28,14 @@ export PATH="/usr/local/bin:${PATH}"
 export WINELOADER="/usr/local/bin/wine"
 export WINESERVER="/usr/local/bin/wineserver"
 
-# Check if minimal Wine prefix exists
-if [ ! -d "$WINEPREFIX/drive_c" ]; then
-    echo "Error: Wine prefix not found at $WINEPREFIX"
-    echo "Running wine-init-runtime.sh to initialize Wine prefix..."
-    /usr/local/bin/wine-init-runtime.sh || {
-        echo "Failed to initialize Wine prefix"
-        exit 1
-    }
-fi
-
-# Verify Wine prefix is accessible
-if [ ! -d "$WINEPREFIX/drive_c/windows" ]; then
-    echo "Error: Wine prefix appears incomplete. Missing windows directory."
-    exit 1
-fi
-
-# Start virtual display
-echo "Starting virtual display for .NET installation..."
+# Start virtual display (needed for .NET installation)
+echo "Starting virtual display..."
 rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true
 Xvfb :0 -screen 0 1024x768x24 -ac +extension GLX &
 XVFB_PID=$!
 sleep 3
+
+# Note: Wine prefix will be automatically initialized by the .NET installers
 
 # Cleanup function
 cleanup() {
