@@ -21,7 +21,7 @@ check_wine_error() {
 # Set Wine environment for headless operation
 export WINEPREFIX=/root/.local/share/wineprefixes/bc1
 export WINEARCH=win64
-export WINEDEBUG=-winediag
+export WINEDEBUG=-all
 #export WINEDLLOVERRIDES="mshtml,mscoree,oleaut32,rpcrt4,wininet="
 
 # Set Wine environment paths
@@ -84,9 +84,6 @@ fi
 echo "✓ Wine runtime environment configured"
 echo "Wine prefix: $WINEPREFIX"
 echo "Wine version: $(wine --version 2>/dev/null || echo 'unknown')"
+echo Now starting full initialization...
 echo ""
-echo "This is a minimal Wine setup suitable for CI/CD pipelines."
-echo "For full .NET Framework support, run:"
-echo "  /usr/local/bin/wine-init-full.sh"
-echo ""
-echo "=== Base image ready for Business Central deployment ==="
+/usr/local/bin/wine-init-full.sh

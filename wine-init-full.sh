@@ -21,7 +21,7 @@ check_wine_error() {
 export WINEPREFIX=/root/.local/share/wineprefixes/bc1
 export WINEARCH=win64
 export DISPLAY=":0"
-export WINEDEBUG=-winediag
+export WINEDEBUG=-all
 
 # Set Wine environment paths
 export PATH="/usr/local/bin:${PATH}"
