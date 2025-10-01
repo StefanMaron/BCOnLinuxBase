@@ -3,20 +3,31 @@
 # Exit on error
 set -e
 
-echo "=== Ultra-Minimal Wine Initialization for CI ==="
+echo "=== Wine Runtime Configuration for CI ==="
+
+# Function to check for critical Wine errors
+check_wine_error() {
+    local output="$1"
+    local command_name="$2"
+    if echo "$output" | grep -q "wine: could not load kernel32.dll"; then
+        echo "✗ FATAL: Wine failed to load kernel32.dll during $command_name"
+        echo "Wine is broken and cannot initialize properly"
+        echo "Error output:"
+        echo "$output"
+        exit 1
+    fi
+}
 
 # Set Wine environment for headless operation
 export WINEPREFIX=/root/.local/share/wineprefixes/bc1
 export WINEARCH=win64
-export WINEDEBUG=-all
-export WINEDLLOVERRIDES="mshtml,mscoree,oleaut32,rpcrt4,wininet="
+export WINEDEBUG=-winediag
+#export WINEDLLOVERRIDES="mshtml,mscoree,oleaut32,rpcrt4,wininet="
 
-# Critical: Set Wine library paths for wine64-bc4ubuntu package
-export PATH="/usr/local/bin:${PATH}"
-export LD_LIBRARY_PATH="/usr/local/lib64:/usr/local/lib:/usr/local/lib/wine/x86_64-unix:/usr/local/lib/wine:${LD_LIBRARY_PATH}"
-export WINEDLLPATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib/wine/x86_64-windows"
-export WINELOADER="/usr/local/bin/wine"
-export WINESERVER="/usr/local/bin/wineserver"
+# Set Wine environment paths
+#export PATH="/usr/local/bin:${PATH}"
+#export WINELOADER="/usr/local/bin/wine"
+#export WINESERVER="/usr/local/bin/wineserver"
 
 # Start virtual display (required for Wine operations)
 echo "Starting virtual display..."
@@ -31,27 +42,21 @@ echo "Setting up locale..."
 locale-gen en_US.UTF-8 2>/dev/null || echo "locale-gen failed, continuing..."
 update-locale LANG=en_US.UTF-8 2>/dev/null || echo "update-locale failed, continuing..."
 
-# Initialize Wine prefix with wineboot
-echo "Initializing Wine prefix at $WINEPREFIX..."
-# Suppress errors that are actually just warnings, give it time to complete
-timeout 60 wineboot --init 2>&1 | grep -v "wine: Call from" | grep -v "wine: Unimplemented" | grep -v "wine: could not load" | grep -v "starting debugger" || true
-
-# Give Wine a moment to finish writing files
-sleep 3
-
-# Verify prefix structure
+# Verify prefix structure (base image already initialized)
 if [ -d "$WINEPREFIX/drive_c" ]; then
-    echo "✓ Wine prefix initialized successfully"
+    echo "✓ Wine prefix verified from base image"
     ls -la "$WINEPREFIX/drive_c/" | head -5
 else
-    echo "✗ Wine prefix initialization failed"
+    echo "✗ Wine prefix not found - base image may be corrupted"
     exit 1
 fi
 
 # Test Wine functionality without GUI
 echo "Testing Wine functionality..."
-if wine --version >/dev/null 2>&1; then
-    echo "✓ Wine is functional: $(wine --version)"
+WINE_VERSION_OUTPUT=$(wine --version 2>&1 || true)
+check_wine_error "$WINE_VERSION_OUTPUT" "wine --version"
+if echo "$WINE_VERSION_OUTPUT" | grep -q "wine"; then
+    echo "✓ Wine is functional: $(echo "$WINE_VERSION_OUTPUT" | head -1)"
 else
     echo "Warning: Wine version check failed, but prefix exists"
 fi
@@ -59,7 +64,9 @@ fi
 # Apply culture fixes if available (non-interactive)
 if [ -f "/usr/local/bin/fix-wine-cultures.sh" ]; then
     echo "Applying Wine culture fixes..."
-    timeout 30 /usr/local/bin/fix-wine-cultures.sh 2>/dev/null || echo "Culture fixes completed with warnings"
+    CULTURE_OUTPUT=$(timeout 30 /usr/local/bin/fix-wine-cultures.sh 2>&1 || echo "Culture fixes completed with warnings")
+    check_wine_error "$CULTURE_OUTPUT" "fix-wine-cultures.sh"
+    echo "$CULTURE_OUTPUT" | tail -5
 fi
 
 # Install BC Container Helper (essential for BC functionality)
@@ -74,7 +81,7 @@ else
 fi
 
 # Final verification
-echo "✓ Ultra-minimal Wine environment initialized"
+echo "✓ Wine runtime environment configured"
 echo "Wine prefix: $WINEPREFIX"
 echo "Wine version: $(wine --version 2>/dev/null || echo 'unknown')"
 echo ""

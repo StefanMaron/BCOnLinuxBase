@@ -1,5 +1,5 @@
-# Start with Ubuntu 24.04 base image
-FROM ubuntu:24.04
+# Start with Wine BC base image
+FROM sshadows/wine-bc:latest
 
 # Download Wine, install all dependencies, and Microsoft tools in single layer
 RUN dpkg --add-architecture i386 && \
@@ -66,11 +66,11 @@ RUN dpkg --add-architecture i386 && \
         iputils-ping \
         dnsutils \
         telnet \
-    && wget -q "https://github.com/SShadowS/wine64-bc4ubuntu/releases/latest/download/wine-custom_10.15-unknown_amd64.deb" -O /tmp/wine-custom.deb \
-    && apt-get install -y /tmp/wine-custom.deb \
-    && rm /tmp/wine-custom.deb \
-    && chmod +x /usr/local/lib/wine/x86_64-unix/wine-preloader /usr/local/lib/wine/x86_64-unix/wine64-preloader 2>/dev/null || true \
-    && chmod +x /usr/local/lib/wine/i386-unix/wine-preloader 2>/dev/null || true \
+    # && wget -q "https://github.com/SShadowS/wine64-bc4ubuntu/releases/latest/download/wine-custom_10.15-unknown_amd64.deb" -O /tmp/wine-custom.deb \
+    # && apt-get install -y /tmp/wine-custom.deb \
+    # && rm /tmp/wine-custom.deb \
+    # && chmod +x /usr/local/lib/wine/x86_64-unix/wine-preloader /usr/local/lib/wine/x86_64-unix/wine64-preloader 2>/dev/null || true \
+    # && chmod +x /usr/local/lib/wine/i386-unix/wine-preloader 2>/dev/null || true \
     && wget -q https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -O /usr/bin/winetricks \
     && chmod +x /usr/bin/winetricks \
     && wget -q "https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb" \
@@ -86,23 +86,21 @@ RUN dpkg --add-architecture i386 && \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Configure dynamic linker for Wine libraries - must be after Wine extraction
-RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/wine.conf && \
-    echo "/usr/local/lib/wine" >> /etc/ld.so.conf.d/wine.conf && \
-    echo "/usr/local/lib/wine/x86_64-unix" >> /etc/ld.so.conf.d/wine.conf && \
-    ldconfig -v 2>&1 | grep -E "^/usr/local" || true && \
-    ldconfig
+# RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/wine.conf && \
+#     echo "/usr/local/lib/wine" >> /etc/ld.so.conf.d/wine.conf && \
+#     echo "/usr/local/lib/wine/x86_64-unix" >> /etc/ld.so.conf.d/wine.conf && \
+#     ldconfig -v 2>&1 | grep -E "^/usr/local" || true && \
+#     ldconfig
 
 # Set Wine environment
 ENV PATH="/usr/local/bin:${PATH}" \
-    LD_LIBRARY_PATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib" \
-    WINEDLLPATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib/wine/x86_64-windows" \
-    WINEARCH=win64 \
+    # WINEARCH=win64 \
     WINEPREFIX=/root/.local/share/wineprefixes/bc1 \
     DEBIAN_FRONTEND=noninteractive \
     DISPLAY=":0" \
     WINE_SKIP_GECKO_INSTALLATION=1 \
     WINE_SKIP_MONO_INSTALLATION=1 \
-    WINEDEBUG=-winediag
+    WINEDEBUG=-all
 
 # Install BC Container Helper during build for artifact download
 RUN pwsh -Command "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted; Install-Module -Name BcContainerHelper -Force -AllowClobber -Scope AllUsers"
