@@ -48,19 +48,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# .NET Framework 4.8 installation disabled per user request
-# echo "Installing .NET Framework 4.8..."
-# winetricks -q dotnet48
-echo "Skipping .NET Framework 4.8 installation (disabled)"
-
-# Test network connectivity
-echo "Testing network connectivity..."
-if ! wget -q --spider https://dotnet.microsoft.com 2>/dev/null; then
-    echo "Warning: Cannot reach dotnet.microsoft.com - checking network..."
-    wget --version | head -1
-    ping -c 1 8.8.8.8 2>/dev/null || echo "Network connectivity issue detected"
-fi
-
+echo "Installing .NET Framework 4.8..."
+winetricks -q dotnet48
+#echo "Skipping .NET Framework 4.8 installation (disabled)"
 
 # Install .NET Desktop Runtime 8.0 using winetricks (required for BC v26)
 echo "Installing .NET Desktop Runtime 8.0 with winetricks..."
