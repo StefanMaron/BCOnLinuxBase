@@ -16,13 +16,29 @@ BASE_IMAGE_NAME="bc-wine-base"
 STAGE1_TAG="stage1"
 FINAL_TAG="local"
 CONTAINER_NAME="wine-init-local"
+NO_CACHE=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --no-cache)
+            NO_CACHE="--no-cache"
+            shift
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            echo "Usage: $0 [--no-cache]"
+            exit 1
+            ;;
+    esac
+done
 
 echo -e "${GREEN}=== Building BC Wine Base Image Locally ===${NC}"
 echo ""
 
 # Step 1: Build the base image (without Wine initialization)
 echo -e "${YELLOW}Step 1: Building base image...${NC}"
-docker build -t ${BASE_IMAGE_NAME}:${STAGE1_TAG} .
+docker build ${NO_CACHE} -t ${BASE_IMAGE_NAME}:${STAGE1_TAG} .
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}✗ Base image build failed${NC}"
