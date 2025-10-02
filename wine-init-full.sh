@@ -61,9 +61,37 @@ if ! wget -q --spider https://dotnet.microsoft.com 2>/dev/null; then
     ping -c 1 8.8.8.8 2>/dev/null || echo "Network connectivity issue detected"
 fi
 
+
 # Install .NET Desktop Runtime 8.0 using winetricks (required for BC v26)
 echo "Installing .NET Desktop Runtime 8.0 with winetricks..."
 winetricks -q dotnet8 dotnetdesktop8
+
+# Install .NET 8.0.18 Hosting Bundle (includes all runtimes needed for BC)
+echo "Installing .NET 8.0.18 Hosting Bundle..."
+cd /tmp
+
+# Download the hosting bundle which includes:
+# - ASP.NET Core Runtime
+# - .NET Runtime
+# - IIS support modules
+wget -q "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/8.0.18/dotnet-hosting-8.0.18-win.exe" || {
+    echo "Failed to download .NET 8.0.18 Hosting Bundle"
+    exit 1
+}
+
+wine dotnet-hosting-8.0.18-win.exe /quiet /install /norestart
+rm -f dotnet-hosting-8.0.18-win.exe
+echo ".NET 8.0.18 Hosting Bundle installation completed"
+
+# Also install Desktop Runtime for BC compatibility
+echo "Installing .NET Desktop Runtime 8.0..."
+wget -q "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.18/windowsdesktop-runtime-8.0.18-win-x64.exe" || {
+    echo "Failed to download .NET Desktop Runtime 8.0"
+    exit 1
+}
+
+wine windowsdesktop-runtime-8.0.18-win-x64.exe /quiet /install /norestart
+rm -f windowsdesktop-runtime-8.0.18-win-x64.exe
 echo ".NET Desktop Runtime 8.0 installation completed"
 
 # Install ASP.NET Core Runtime 8.0 (required for BC v26 Dev endpoints)
