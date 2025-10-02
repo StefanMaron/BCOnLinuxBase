@@ -105,7 +105,7 @@ docker run --rm bc-wine-base
 | `DISPLAY` | X11 display for headless operation | `:0` |
 | `WINE_SKIP_GECKO_INSTALLATION` | Skip Gecko installation | `1` |
 | `WINE_SKIP_MONO_INSTALLATION` | Skip Mono installation | `1` |
-| `WINEDEBUG` | Wine debug level | `-winediag` |
+| `WINEDEBUG` | Wine debug level | `-all` |
 | `BCPORT` | Business Central web client port | `7046` |
 | `BCMANAGEMENTPORT` | BC management service port | `7045` |
 
