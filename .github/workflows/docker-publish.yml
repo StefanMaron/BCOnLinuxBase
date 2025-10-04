@@ -81,6 +81,9 @@ jobs:
             type=raw,value=wine-{{date 'YYYYMMDD'}}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Pull latest base image
+        run: docker pull sshadows/wine-bc:latest
+
       - name: Build stage 1 image (Wine without initialization)
         id: build-stage1
         uses: docker/build-push-action@v6
@@ -92,6 +95,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
+          pull: true
 
       - name: Run Wine initialization in container
         run: |
