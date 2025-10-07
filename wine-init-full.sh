@@ -75,40 +75,14 @@ echo ".NET 8.0.18 Hosting Bundle installation completed"
 
 # Also install Desktop Runtime for BC compatibility
 echo "Installing .NET Desktop Runtime 8.0..."
-wget -q "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.18/windowsdesktop-runtime-8.0.18-win-x64.exe" || {
+wget -q "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.12/windowsdesktop-runtime-8.0.12-win-x64.exe" || {
     echo "Failed to download .NET Desktop Runtime 8.0"
     exit 1
 }
 
-wine windowsdesktop-runtime-8.0.18-win-x64.exe /quiet /install /norestart
-rm -f windowsdesktop-runtime-8.0.18-win-x64.exe
+wine windowsdesktop-runtime-8.0.12-win-x64.exe /quiet /install /norestart
+rm -f windowsdesktop-runtime-8.0.12-win-x64.exe
 echo ".NET Desktop Runtime 8.0 installation completed"
-
-# Install ASP.NET Core Runtime 8.0 (required for BC v26 Dev endpoints)
-echo "Installing ASP.NET Core Runtime 8.0..."
-
-# Use the direct Microsoft CDN URL
-ASPNET_CORE_URL="https://download.visualstudio.microsoft.com/download/pr/3bebb4ec-ed65-47e9-a0d1-949984bfa48f/0f8cecf7f99c3b0e4a3ef088c1c1c850/aspnetcore-runtime-8.0.11-win-x64.exe"
-echo "Downloading ASP.NET Core Runtime 8.0..."
-echo "URL: $ASPNET_CORE_URL"
-
-if ! wget --timeout=30 --tries=3 --no-check-certificate --progress=dot:giga "$ASPNET_CORE_URL" -O aspnetcore-runtime-8.0.11-win-x64.exe; then
-    echo "Primary download failed, trying fallback URL..."
-    # Try the latest stable version as fallback
-    FALLBACK_URL="https://dotnetcli.azureedge.net/dotnet/aspnetcore/Runtime/8.0.11/aspnetcore-runtime-8.0.11-win-x64.exe"
-    if ! wget --timeout=30 --tries=3 --no-check-certificate --progress=dot:giga "$FALLBACK_URL" -O aspnetcore-runtime-8.0.11-win-x64.exe; then
-        echo "ERROR: Could not download ASP.NET Core Runtime 8.0"
-        echo "Please check network connectivity or download manually"
-        exit 1
-    fi
-fi
-
-# Use the Wine executable with proper environment
-echo "Installing with Wine (environment set)..."
-ASPNET_INSTALL_OUTPUT=$(/usr/local/bin/wine aspnetcore-runtime-8.0.11-win-x64.exe /quiet /install /norestart 2>&1 || true)
-check_wine_error "$ASPNET_INSTALL_OUTPUT" "ASP.NET Core Runtime installer"
-rm -f aspnetcore-runtime-8.0.11-win-x64.exe
-echo "ASP.NET Core Runtime 8.0 installation completed"
 
 # Wait for installations to settle
 sleep 5

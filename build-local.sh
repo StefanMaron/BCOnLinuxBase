@@ -36,6 +36,11 @@ done
 echo -e "${GREEN}=== Building BC Wine Base Image Locally ===${NC}"
 echo ""
 
+# Pull latest base image
+echo -e "${YELLOW}Pulling latest sshadows/wine-bc:latest base image...${NC}"
+docker pull sshadows/wine-bc:latest
+echo ""
+
 # Step 1: Build the base image (without Wine initialization)
 echo -e "${YELLOW}Step 1: Building base image...${NC}"
 docker build ${NO_CACHE} -t ${BASE_IMAGE_NAME}:${STAGE1_TAG} .
