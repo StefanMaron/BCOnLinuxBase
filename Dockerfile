@@ -77,7 +77,7 @@ RUN dpkg --add-architecture i386 && \
     && dpkg -i packages-microsoft-prod.deb \
     && rm packages-microsoft-prod.deb \
     && apt-get update \
-    && apt-get install -y powershell \
+    && apt-get install -y powershell dotnet-runtime-8.0 \
     && ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev \
     && echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> /etc/bash.bashrc \
     && locale-gen en_US.UTF-8 \
