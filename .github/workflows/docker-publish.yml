@@ -36,13 +36,13 @@ jobs:
         uses: jlumbroso/free-disk-space@main
         with:
           # Remove tools we don't need for Docker builds
-          tool-cache: true
+          tool-cache: false
           android: true
-          dotnet: true
+          dotnet: false
           haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
 
       - name: Cleanup Docker
         run: |
