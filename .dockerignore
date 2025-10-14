@@ -6,6 +6,8 @@
 # Documentation
 README.md
 *.md
+docs/
+CHANGELOG.md
 
 # CI/CD
 .github/
@@ -15,11 +17,13 @@ README.md
 .env.local
 .env.development
 .env.test
+examples/
 
 # Build artifacts
 dist
 build
 target/
+.alpackages/
 
 # Logs
 logs
@@ -31,6 +35,7 @@ coverage
 # IDE
 .vscode
 .idea
+.claude/
 
 # OS
 .DS_Store
@@ -44,8 +49,19 @@ node_modules/
 # Docker files (keep only Dockerfile in context)
 .dockerignore
 docker-compose.yml
+build-local.sh
 
-# Temporary files
+# Temporary files and artifacts
 tmp/
 temp/
 *.tmp
+.snapshots/
+wine-patches/
+
+# Keys and sensitive data (these shouldn't be in images)
+secret.key
+encryption_key_data.txt
+bc_publickey_import.sql
+
+# Build scripts not needed in image
+apply-wine-patches.sh
