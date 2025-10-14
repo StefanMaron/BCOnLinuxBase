@@ -81,6 +81,14 @@ jobs:
             type=raw,value=wine-{{date 'YYYYMMDD'}}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Pull base image and create flattened version
+        run: |
+          echo "Pulling base Wine image..."
+          docker pull sshadows/wine-bc:latest
+          echo "Creating flattened version for optimized layers..."
+          ./flatten-base.sh
+          echo "Flattened base image created: sshadows/wine-bc:flat"
+
       - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@v6
