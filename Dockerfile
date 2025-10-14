@@ -1,7 +1,5 @@
-# Start with Wine BC base image (flattened for fewer layers)
-# Use sshadows/wine-bc:flat for optimized layer count (1 layer vs 8 layers)
-# Run ./flatten-base.sh to create the flattened base locally
-ARG BASE_IMAGE_TAG=flat
+# Start with Wine BC base image
+ARG BASE_IMAGE_TAG=latest
 FROM sshadows/wine-bc:${BASE_IMAGE_TAG}
 
 # Download Wine, install all dependencies, and Microsoft tools in single layer
