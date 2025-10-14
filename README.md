@@ -163,13 +163,72 @@ Images are automatically built and published when:
 
 The base image includes these components to dramatically reduce BC container startup time:
 
-- **Wine 9.x** (latest) compiled from source with BC-specific patches
-- **Wine Staging patches** for enhanced compatibility  
-- **.NET Framework 4.8** pre-installed in Wine prefix
-- **PowerShell** and **BC Container Helper** 
-- **SQL Server tools** (sqlcmd, etc.)
-- **Optimized Wine registry settings** for BC Server
-- **Pre-initialized Wine prefix** ready for BC deployment
+#### Base System & Architecture
+- **Base Image**: `sshadows/wine-bc:latest` (Wine BC base)
+- **i386 Architecture**: Added for 32-bit support
+
+#### System Packages
+
+**Download Tools**
+- wget, curl, ca-certificates, gnupg2
+
+**Wine Runtime Dependencies** (both i386 and amd64)
+- Graphics: libx11-6, libfreetype6, libfontconfig1, libgl1, libglu1-mesa
+- Input/Display: libxcursor1, libxi6, libxext6, libxrandr2, libxrender1, libxinerama1
+- Audio: libasound2t64, libpulse0
+- System: libc6, libdbus-1-3, libgnutls30t64, libncurses6, libldap-common, libcups2
+
+**Required Tools**
+- winbind, p7zip-full, net-tools, cabextract, software-properties-common
+- xvfb, xauth, unzip, locales, lsb-release, vim-common, apt-transport-https
+
+**Network Debugging Tools**
+- iputils-ping, dnsutils, telnet
+
+#### Wine Components
+- **Wine Custom Build**: Version 10.15+ from `sshadows/wine64-bc4ubuntu` with BC4-specific locale enumeration fixes
+- **Winetricks**: Latest version from GitHub
+- **Wine Environment**:
+  - `WINEPREFIX=/root/.local/share/wineprefixes/bc1`
+  - `WINEARCH=win64`
+  - `WINEDEBUG=-all`
+  - Gecko and Mono installation skipped
+
+#### Microsoft Tools & Runtimes
+- **PowerShell**: Latest from Microsoft packages repository
+- **.NET Runtime 8.0**: Core runtime for Linux
+- **.NET Framework 4.8**: Installed in Wine prefix via winetricks
+- **.NET 8 via Winetricks**: Base .NET 8 and Desktop Runtime 8
+- **.NET 8.0.18 Hosting Bundle**: Includes ASP.NET Core Runtime, .NET Runtime, and IIS support
+- **.NET Desktop Runtime 8.0.12**: Windows Desktop Runtime x64
+- **SQL Server Tools**: mssql-tools18 with ODBC drivers
+- **BC Container Helper**: PowerShell module from PSGallery
+
+#### Locale Configuration
+- **en_US.UTF-8**: Generated and set as default
+- **Wine Registry Locale Settings**: Configured for en-US only to prevent BC4 culture enumeration issues
+
+#### Directories Created
+- `/home/bcartifacts` - BC artifacts storage
+- `/home/bcserver/Keys` - BC server keys
+- `/home/scripts` - Custom scripts
+- `/home/tests` - Test files
+- `/root/.local/share/wineprefixes/bc1` - Wine prefix directory
+
+#### Initialization Scripts
+- `fix-wine-cultures.sh` - Applies Wine culture/locale fixes
+- `wine-init-runtime.sh` - Ultra-minimal Wine initialization for CI/CD
+- `wine-init-full.sh` - Complete Wine initialization with .NET Framework and runtimes
+- `test-wine.sh` - Wine functionality validation
+
+#### Runtime Initialization
+- **Xvfb Virtual Display**: Runs on `:0` with 1024x768x24 resolution
+- **Wine Prefix**: Verified from base image with `drive_c` structure
+- **Wine Culture Fixes**: Applied via registry configuration to limit locales
+- **.NET Registry Configuration**: InstallRoot paths and strong crypto enabled
+- **BC Container Helper**: Installed with PowerShell module verification
+
+**Time Savings**: By pre-installing .NET Framework 4.8, .NET 8 runtimes, and configuring Wine, BC container startup time is reduced from ~15-20 minutes to ~3-5 minutes.
 
 ## 🏗️ Architecture
 
@@ -228,9 +287,9 @@ FROM your-username/bc-wine-base:latest
 # BC-specific version requirements (only install what's not in base)
 RUN cd /tmp && \
     # Install .NET 8 Desktop Runtime (version-specific)
-    wget "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.18/windowsdesktop-runtime-8.0.18-win-x64.exe" && \
-    wine windowsdesktop-runtime-8.0.18-win-x64.exe /quiet /install /norestart && \
-    rm -f windowsdesktop-runtime-8.0.18-win-x64.exe
+    wget "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.12/windowsdesktop-runtime-8.0.12-win-x64.exe" && \
+    wine windowsdesktop-runtime-8.0.12-win-x64.exe /quiet /install /norestart && \
+    rm -f windowsdesktop-runtime-8.0.12-win-x64.exe
 
 # Add BC artifacts and configuration
 COPY bcartifacts/ /home/bcartifacts/

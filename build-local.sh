@@ -17,6 +17,9 @@ STAGE1_TAG="stage1"
 FINAL_TAG="local"
 CONTAINER_NAME="wine-init-local"
 NO_CACHE=""
+VARIANT="standard"  # Default to standard build
+BASE_WINE_IMAGE="sshadows/wine-bc:latest"  # Default base image
+BASE_IMAGE_TAG="latest"  # Default tag for Dockerfile build arg
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -25,25 +28,43 @@ while [[ $# -gt 0 ]]; do
             NO_CACHE="--no-cache"
             shift
             ;;
+        --variant)
+            VARIANT="$2"
+            if [[ "$VARIANT" != "standard" && "$VARIANT" != "optimized" ]]; then
+                echo -e "${RED}Invalid variant: $VARIANT${NC}"
+                echo "Valid variants: standard, optimized"
+                exit 1
+            fi
+            shift 2
+            ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
-            echo "Usage: $0 [--no-cache]"
+            echo "Usage: $0 [--no-cache] [--variant standard|optimized]"
             exit 1
             ;;
     esac
 done
 
+# Set variant-specific configuration
+if [ "$VARIANT" = "optimized" ]; then
+    BASE_WINE_IMAGE="sshadows/wine-bc:optimized"
+    BASE_IMAGE_TAG="optimized"
+    FINAL_TAG="local-optimized"
+    CONTAINER_NAME="wine-init-local-optimized"
+fi
+
 echo -e "${GREEN}=== Building BC Wine Base Image Locally ===${NC}"
 echo ""
 
-# Pull latest base image
-echo -e "${YELLOW}Pulling latest sshadows/wine-bc:latest base image...${NC}"
-docker pull sshadows/wine-bc:latest
+# Pull base image for selected variant
+echo -e "${YELLOW}Building variant: ${VARIANT}${NC}"
+echo -e "${YELLOW}Pulling base image: ${BASE_WINE_IMAGE}...${NC}"
+docker pull ${BASE_WINE_IMAGE}
 echo ""
 
 # Step 1: Build the base image (without Wine initialization)
 echo -e "${YELLOW}Step 1: Building base image...${NC}"
-docker build ${NO_CACHE} -t ${BASE_IMAGE_NAME}:${STAGE1_TAG} .
+docker build ${NO_CACHE} --build-arg BASE_IMAGE_TAG=${BASE_IMAGE_TAG} -t ${BASE_IMAGE_NAME}:${STAGE1_TAG} .
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}✗ Base image build failed${NC}"
@@ -103,7 +124,9 @@ fi
 # Show image information
 echo ""
 echo -e "${GREEN}=== Build Complete ===${NC}"
-echo "Image: ${BASE_IMAGE_NAME}:${FINAL_TAG}"
+echo "Variant: ${VARIANT}"
+echo "Base Image: ${BASE_WINE_IMAGE}"
+echo "Built Image: ${BASE_IMAGE_NAME}:${FINAL_TAG}"
 echo "Size: $(docker images ${BASE_IMAGE_NAME}:${FINAL_TAG} --format "{{.Size}}")"
 echo ""
 echo "To use the image:"

@@ -1,5 +1,6 @@
 # Start with Wine BC base image
-FROM sshadows/wine-bc:latest
+ARG BASE_IMAGE_TAG=latest
+FROM sshadows/wine-bc:${BASE_IMAGE_TAG}
 
 # Download Wine, install all dependencies, and Microsoft tools in single layer
 RUN dpkg --add-architecture i386 && \
@@ -10,44 +11,15 @@ RUN dpkg --add-architecture i386 && \
         curl \
         ca-certificates \
         gnupg2 \
-        # Wine runtime dependencies
-        libc6:i386 \
-        libx11-6:i386 \
-        libx11-6 \
-        libfreetype6:i386 \
-        libfreetype6 \
-        libfontconfig1:i386 \
-        libfontconfig1 \
-        libxcursor1:i386 \
-        libxcursor1 \
-        libxi6:i386 \
-        libxi6 \
-        libxext6:i386 \
-        libxext6 \
-        libxrandr2:i386 \
-        libxrandr2 \
-        libxrender1:i386 \
-        libxrender1 \
-        libxinerama1:i386 \
-        libxinerama1 \
-        libgl1:i386 \
-        libgl1 \
-        libglu1-mesa:i386 \
-        libglu1-mesa \
-        libasound2t64:i386 \
-        libasound2t64 \
-        libpulse0:i386 \
-        libpulse0 \
-        libdbus-1-3:i386 \
-        libdbus-1-3 \
-        libgnutls30t64:i386 \
-        libgnutls30t64 \
-        libncurses6:i386 \
-        libncurses6 \
-        libldap-common \
-        libcups2:i386 \
-        libcups2 \
-        # Required tools
+        # Wine runtime dependencies - REMOVED (inherited from wine-bc base image)
+        # The following packages are already installed in sshadows/wine-bc:
+        # - All X11 libraries (libx11-6, libfreetype6, libxcursor1, libxi6, libxext6, etc.)
+        # - All graphics libraries (libgl1, libglu1-mesa, libxrandr2, libxrender1, libxinerama1)
+        # - All audio libraries (libasound2, libpulse0)
+        # - All system libraries (libdbus-1-3, libgnutls30, libncurses6, libcups2)
+        # - Kerberos libraries (libkrb5-3, libgssapi-krb5-2, etc.)
+        # See /home/sshadows/wine/Dockerfile.optimized:159-212 for complete list
+        # Required tools (NEW packages not in wine-bc base)
         winbind \
         p7zip-full \
         net-tools \
@@ -105,17 +77,95 @@ ENV PATH="/usr/local/bin:${PATH}" \
 # Install BC Container Helper during build for artifact download
 RUN pwsh -Command "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted; Install-Module -Name BcContainerHelper -Force -AllowClobber -Scope AllUsers"
 
-# Create directories for BC usage
-RUN mkdir -p /home/bcartifacts /home/bcserver/Keys /home/scripts /home/tests /root/.local/share/wineprefixes/bc1
-
-# Copy Wine culture fix script
+# Copy Wine culture fix script BEFORE we use it in the .NET installation
 COPY fix-wine-cultures.sh /usr/local/bin/fix-wine-cultures.sh
 RUN chmod +x /usr/local/bin/fix-wine-cultures.sh
 
-# Create wine initialization scripts for runtime
-COPY wine-init-runtime.sh /usr/local/bin/wine-init-runtime.sh
-COPY wine-init-full.sh /usr/local/bin/wine-init-full.sh
-RUN chmod +x /usr/local/bin/wine-init-runtime.sh /usr/local/bin/wine-init-full.sh
+# ============================================================================
+# Initialize .NET components during IMAGE BUILD (not runtime)
+# This makes containers start in seconds instead of minutes
+# Wine prefix is already initialized in base image (wine/Dockerfile.optimized:237)
+# ============================================================================
+RUN echo "=== Installing .NET 8 for BC v26 (build-time initialization) ===" && \
+    # Verify Wine prefix inherited from base image
+    test -d "$WINEPREFIX/drive_c" && echo "✓ Wine prefix inherited from base image" || exit 1 && \
+    \
+    # Start temporary Xvfb for .NET installation
+    rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true && \
+    export DISPLAY=":0" && \
+    export XKB_DEFAULT_LAYOUT=us && \
+    Xvfb :0 -screen 0 1024x768x24 -ac +extension GLX & \
+    XVFB_PID=$! && \
+    sleep 3 && \
+    \
+    # Apply BC culture fixes (BC-specific Wine patches)
+    echo "Applying BC culture fixes..." && \
+    /usr/local/bin/fix-wine-cultures.sh && \
+    \
+    # Install .NET 8.0.18 Hosting Bundle (ASP.NET Core + Runtime)
+    echo "Installing .NET 8.0.18 Hosting Bundle..." && \
+    cd /tmp && \
+    wget -q "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/8.0.18/dotnet-hosting-8.0.18-win.exe" && \
+    wine dotnet-hosting-8.0.18-win.exe /quiet /install /norestart && \
+    rm -f dotnet-hosting-8.0.18-win.exe && \
+    \
+    # Install .NET 8.0.12 Desktop Runtime (WPF/WinForms support)
+    echo "Installing .NET Desktop Runtime 8.0.12..." && \
+    wget -q "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.12/windowsdesktop-runtime-8.0.12-win-x64.exe" && \
+    wine windowsdesktop-runtime-8.0.12-win-x64.exe /quiet /install /norestart && \
+    rm -f windowsdesktop-runtime-8.0.12-win-x64.exe && \
+    \
+    # Configure .NET registry paths
+    echo "Configuring .NET registry settings..." && \
+    wine reg add "HKLM\\SOFTWARE\\Microsoft\\.NETCore" /v "InstallRoot" /t REG_SZ /d "C:\\Program Files\\dotnet\\" /f && \
+    wine reg add "HKLM\\SOFTWARE\\Microsoft\\.NETFramework" /v "InstallRoot" /t REG_SZ /d "C:\\Windows\\Microsoft.NET\\Framework64\\" /f && \
+    wine reg add "HKLM\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319" /v "SchUseStrongCrypto" /t REG_DWORD /d 1 /f && \
+    \
+    # Configure Wine graphics for headless operation
+    wine reg add "HKCU\\Software\\Wine\\Direct3D" /v "DirectDrawRenderer" /t REG_SZ /d "opengl" /f && \
+    wine reg add "HKCU\\Software\\Wine\\Direct3D" /v "UseGLSL" /t REG_SZ /d "disabled" /f && \
+    wine reg add "HKCU\\Software\\Wine\\Direct3D" /v "UseVulkan" /t REG_SZ /d "disabled" /f && \
+    \
+    # Cleanup
+    wineserver --kill && \
+    kill $XVFB_PID 2>/dev/null || true && \
+    rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 && \
+    \
+    # Verify installation
+    test -d "$WINEPREFIX/drive_c/Program Files/dotnet" && echo "✓ .NET 8 installed successfully" || exit 1 && \
+    ls -la "$WINEPREFIX/drive_c/Program Files/dotnet/" | head -5
+
+# ============================================================================
+# Install .NET Framework 4.8 (required for BC Reporting and some BC components)
+# ============================================================================
+RUN echo "=== Installing .NET Framework 4.8 (build-time initialization) ===" && \
+    # Start temporary Xvfb for .NET 4.8 installation
+    rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null || true && \
+    export DISPLAY=":0" && \
+    export XKB_DEFAULT_LAYOUT=us && \
+    Xvfb :0 -screen 0 1024x768x24 -ac +extension GLX & \
+    XVFB_PID=$! && \
+    sleep 3 && \
+    \
+    # Install .NET Framework 4.8 using winetricks
+    echo "Installing .NET Framework 4.8 (this may take 5-10 minutes)..." && \
+    WINEDLLPATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib/wine/x86_64-windows" \
+    LD_LIBRARY_PATH="/usr/local/lib/wine/x86_64-unix:/usr/local/lib:${LD_LIBRARY_PATH}" \
+    winetricks prefix=bc1 -q dotnet48 && \
+    \
+    # Cleanup
+    wineserver --kill && \
+    kill $XVFB_PID 2>/dev/null || true && \
+    rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 && \
+    \
+    # Verify installation
+    test -d "$WINEPREFIX/drive_c/windows/Microsoft.NET/Framework64/v4.0.30319" && echo "✓ .NET Framework 4.8 installed successfully" || exit 1
+
+# Mark that Wine and .NET are initialized in the image
+RUN touch /home/.wine-initialized
+
+# Create directories for BC usage
+RUN mkdir -p /home/bcartifacts /home/bcserver/Keys /home/scripts /home/tests /root/.local/share/wineprefixes/bc1
 
 # Show Wine version
 RUN echo "Wine version installed:" && wine --version
@@ -124,5 +174,5 @@ RUN echo "Wine version installed:" && wine --version
 COPY test-wine.sh /usr/local/bin/test-wine.sh
 RUN chmod +x /usr/local/bin/test-wine.sh
 
-# Default command - initialize Wine at runtime
-CMD ["/usr/local/bin/wine-init-runtime.sh"]
+# Default command - Wine and .NET are already initialized, just start shell
+CMD ["/bin/bash"]
